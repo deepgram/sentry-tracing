@@ -14,28 +14,19 @@ impl<S: Subscriber> Layer<S> for SentryLayer {
 
     /// Notifies this layer that an event has occurred.
     fn on_event(&self, event: &Event<'_>, context: Context<'_, S>) {
-        let recorded =
-            sentry_core::with_integration(|integration: &TracingIntegration, hub: &Hub| {
-                if integration.create_issue_for_event(event) {
-                    hub.capture_event(convert_tracing_event(event, &integration.options));
-                }
+        sentry_core::with_integration(|integration: &TracingIntegration, hub: &Hub| {
+            if integration.create_issue_for_event(event) {
+                hub.capture_event(convert_tracing_event(event, &integration.options));
+            }
 
-                if integration.options.emit_breadcrumbs
-                    && integration
-                        .options
-                        .filter
-                        .enabled(event.metadata(), context)
-                {
-                    sentry_core::add_breadcrumb(|| {
-                        breadcrumb_from_event(event, &integration.options)
-                    });
-                }
-
-                true
-            });
-
-        if !recorded {
-            eprintln!("Tracing event was not recorded by sentry because it has no `TracingIntegration` applied.")
-        }
+            if integration.options.emit_breadcrumbs
+                && integration
+                    .options
+                    .filter
+                    .enabled(event.metadata(), context)
+            {
+                sentry_core::add_breadcrumb(|| breadcrumb_from_event(event, &integration.options));
+            }
+        });
     }
 }
